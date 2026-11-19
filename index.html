@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HKU Common Core RAG — Project Showcase</title>
+<meta name="description" content="A search and question-answering app over the 201 HKU Common Core courses: filter by exam and workload, compare courses, and check which may not be taken together.">
+<style>
+  /* ---------- design tokens ---------- */
+  :root{
+    --ink:#14181f;
+    --ink-soft:#3d4653;
+    --muted:#5d6773;
+    --line:#e2e6ec;
+    --line-soft:#eef1f5;
+    --bg:#ffffff;
+    --bg-tint:#f7f8fa;
+    --bg-tint2:#f2f4f8;
+    --hku:#a4001a;          /* the app's own accent */
+    --hku-soft:#fdf2f4;
+    --accent:#1a4d8f;
+    --accent-soft:#eef3fa;
+    --good:#1d6b47;
+    --good-soft:#edf7f1;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(20,24,31,.05), 0 8px 24px -12px rgba(20,24,31,.14);
+    --maxw:1140px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{line-height:1.2;margin:0;letter-spacing:-.02em;font-weight:700}
+  p{margin:0}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:.88em;background:var(--bg-tint2);padding:.14em .38em;border-radius:5px;
+    border:1px solid var(--line-soft);
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .eyebrow{
+    font-size:.74rem;letter-spacing:.13em;text-transform:uppercase;
+    font-weight:700;color:var(--hku);
+  }
+
+  /* ---------- sticky nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);
+    backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{display:flex;align-items:center;gap:22px;height:58px}
+  .brand{font-weight:700;font-size:.95rem;letter-spacing:-.01em;white-space:nowrap}
+  .brand span{color:var(--hku)}
+  nav ul{display:flex;gap:20px;list-style:none;margin:0;padding:0;margin-left:auto}
+  nav a{font-size:.88rem;color:var(--ink-soft);font-weight:500}
+  nav a:hover{color:var(--hku);text-decoration:none}
+  @media(max-width:760px){nav ul{display:none}}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:72px 0 56px;border-bottom:1px solid var(--line);background:
+      radial-gradient(900px 380px at 88% -12%, var(--hku-soft), transparent 62%),
+      linear-gradient(180deg,#fff,var(--bg-tint));}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+  @media(max-width:900px){.hero-grid{grid-template-columns:1fr;gap:36px}}
+  .hero h1{font-size:clamp(2rem,4.2vw,3.05rem);margin:14px 0 0}
+  .hero .lede{font-size:1.12rem;color:var(--ink-soft);margin-top:18px;max-width:36em}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+  .pill{
+    font-size:.78rem;font-weight:600;padding:.34em .7em;border-radius:999px;
+    background:#fff;border:1px solid var(--line);color:var(--ink-soft);
+  }
+  .pill.accent{background:var(--hku-soft);border-color:#f3d3d9;color:var(--hku)}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;padding:.72em 1.25em;border-radius:10px;
+    font-weight:650;font-size:.94rem;border:1px solid transparent;transition:.15s;
+  }
+  .btn-primary{background:var(--hku);color:#fff;box-shadow:0 6px 16px -8px rgba(164,0,26,.7)}
+  .btn-primary:hover{background:#8c0016;text-decoration:none;transform:translateY(-1px)}
+  .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:#c8cfd9;text-decoration:none;transform:translateY(-1px)}
+  .btn svg{width:16px;height:16px;flex:none}
+
+  /* hero visual: a small mock of a result card */
+  .hero-card{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px 18px 16px;font-size:.86rem;
+  }
+  .hero-card .hc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .hero-card .hc-code{font-weight:700;font-size:.78rem;color:var(--hku);letter-spacing:.02em}
+  .hero-card .hc-title{font-weight:650;font-size:.95rem;line-height:1.35}
+  .hero-card .hc-quiz{
+    margin-top:10px;font-size:.78rem;color:var(--ink-soft);
+  }
+  .hero-card .hc-row{display:flex;gap:18px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line-soft)}
+  .hero-card .hc-k{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+  .hero-card .hc-v{font-weight:650;font-size:.9rem}
+  .hero-card .hc-fine{
+    margin-top:11px;font-size:.76rem;color:var(--muted);line-height:1.55;
+    border-top:1px solid var(--line-soft);padding-top:10px;
+  }
+
+  /* ---------- sections ---------- */
+  section{padding:66px 0;border-bottom:1px solid var(--line)}
+  section:nth-of-type(even){background:var(--bg-tint)}
+  .sec-head{max-width:44em}
+  .sec-head h2{font-size:clamp(1.5rem,2.6vw,2rem);margin-top:10px}
+  .sec-head p{color:var(--ink-soft);margin-top:12px}
+
+  /* problem / who */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}
+  @media(max-width:820px){.two{grid-template-columns:1fr}}
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px;box-shadow:var(--shadow);
+  }
+  .card h3{font-size:1.02rem;margin-bottom:6px}
+  .card .kicker{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .bullets{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:9px}
+  .bullets li{position:relative;padding-left:22px;font-size:.92rem;color:var(--ink-soft)}
+  .bullets li::before{
+    content:"";position:absolute;left:0;top:.52em;width:7px;height:7px;border-radius:50%;
+    background:var(--hku);opacity:.75;
+  }
+  .bullets li b{color:var(--ink);font-weight:650}
+
+  /* feature rows */
+  .feature{display:grid;grid-template-columns:.82fr 1.18fr;gap:40px;align-items:center;margin-top:52px}
+  .feature:first-of-type{margin-top:40px}
+  .feature.flip{grid-template-columns:1.18fr .82fr}
+  .feature.flip .fig{order:-1}
+  @media(max-width:880px){
+    .feature,.feature.flip{grid-template-columns:1fr;gap:22px}
+    .feature.flip .fig{order:0}
+  }
+  .feature .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:7px;background:var(--hku);color:#fff;
+    font-size:.8rem;font-weight:700;margin-bottom:12px;
+  }
+  .feature .num.cont{background:var(--accent-soft);color:var(--accent);border:1px solid #d7e3f4}
+  .feature h3{font-size:1.3rem;margin-bottom:10px}
+  .feature p{color:var(--ink-soft);font-size:.95rem}
+  .feature ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+  .feature ul li{position:relative;padding-left:20px;font-size:.9rem;color:var(--ink-soft)}
+  .feature ul li::before{
+    content:"";position:absolute;left:3px;top:.55em;width:6px;height:6px;border-radius:2px;
+    background:var(--accent);opacity:.65;
+  }
+  .fig{margin:0}
+  .fig img{
+    width:100%;display:block;border-radius:12px;border:1px solid var(--line);
+    box-shadow:var(--shadow);background:#fff;cursor:zoom-in;transition:.16s;
+  }
+  .fig img:hover{box-shadow:0 2px 4px rgba(20,24,31,.06), 0 14px 34px -14px rgba(20,24,31,.22)}
+  .fig figcaption{font-size:.79rem;color:var(--muted);margin-top:10px;line-height:1.5}
+  .fig figcaption b{color:var(--ink-soft);font-weight:650}
+  .zoomhint{font-size:.72rem;color:var(--muted);opacity:.85}
+
+  /* lightbox */
+  .lb{
+    position:fixed;inset:0;z-index:100;display:none;
+    background:rgba(14,18,24,.86);backdrop-filter:blur(4px);
+    padding:28px;align-items:center;justify-content:center;cursor:zoom-out;
+  }
+  .lb.on{display:flex}
+  .lb img{
+    max-width:100%;max-height:100%;border-radius:10px;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.6);background:#fff;
+  }
+  .lb .close{
+    position:absolute;top:18px;right:24px;color:#fff;font-size:1.9rem;line-height:1;
+    font-weight:300;opacity:.8;user-select:none;
+  }
+
+  /* architecture */
+  .arch{margin-top:36px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px 22px;box-shadow:var(--shadow);overflow-x:auto}
+  .arch svg{display:block;width:100%;min-width:720px;height:auto}
+  .arch-legend{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+  @media(max-width:820px){.arch-legend{grid-template-columns:1fr}}
+  .arch-legend div{font-size:.87rem;color:var(--ink-soft)}
+  .arch-legend b{display:block;color:var(--ink);font-size:.82rem;text-transform:uppercase;
+    letter-spacing:.07em;margin-bottom:5px}
+
+  /* numbers */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:34px}
+  @media(max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px}
+  .stat .n{font-size:1.75rem;font-weight:750;letter-spacing:-.03em;color:var(--hku)}
+  .stat .l{font-size:.8rem;color:var(--muted);margin-top:3px;line-height:1.4}
+
+  /* how to run */
+  pre{
+    background:#14181f;color:#e6e9ef;border-radius:12px;padding:18px 20px;overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.84rem;line-height:1.7;
+    margin:16px 0 0;
+  }
+  pre .c{color:#8b96a8}
+  pre .p{color:#7fc4a0}
+
+  /* team */
+  .team{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-top:32px}
+  .person{border:1px solid var(--line);border-radius:12px;padding:20px;background:#fff;text-align:center}
+  .avatar{
+    width:52px;height:52px;border-radius:50%;margin:0 auto 12px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--hku-soft);color:var(--hku);font-weight:750;font-size:1.05rem;
+    border:1px solid #f3d3d9;
+  }
+  .person .nm{font-weight:650;font-size:.95rem}
+  .person .rl{font-size:.82rem;color:var(--muted);margin-top:3px}
+
+  /* links block */
+  .linkrow{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:30px}
+  @media(max-width:820px){.linkrow{grid-template-columns:1fr}}
+  .linkcard{
+    display:block;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px 24px;box-shadow:var(--shadow);transition:.16s;color:inherit;
+  }
+  .linkcard:hover{text-decoration:none;transform:translateY(-2px);border-color:#c9d2dd}
+  .linkcard .k{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--hku)}
+  .linkcard .t{font-size:1.1rem;font-weight:650;margin-top:6px}
+  .linkcard .d{font-size:.87rem;color:var(--muted);margin-top:4px}
+
+  /* footer */
+  footer{padding:40px 0 56px;color:var(--muted);font-size:.85rem}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center}
+
+  .note{
+    margin-top:18px;font-size:.82rem;color:var(--muted);
+    border-left:3px solid var(--line);padding-left:14px;
+  }
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">HKU Common Core <span>RAG</span></div>
+    <ul>
+      <li><a href="#problem">The problem</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#team">Team</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">AILT9019 · Group 48 · HKU</div>
+      <h1>Find the Common Core course that actually fits you.</h1>
+      <p class="lede">
+        The official catalogue tells you 201 courses exist. It does not tell you
+        which ones have no exam, how much independent work they really require,
+        or which pairs you cannot take together. This app answers those questions
+        from the published course pages — and shows the evidence for every answer.
+      </p>
+      <div class="meta">
+        <span class="pill accent">201 courses indexed</span>
+        <span class="pill">1,385 passages embedded</span>
+        <span class="pill">4 tabs run offline</span>
+        <span class="pill">438 tests passing</span>
+      </div>
+      <div class="cta">
+        <!-- TODO: replace the two hrefs with your real links -->
+        <a class="btn btn-primary" href="#" data-todo="demo-video">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          Demo video coming soon
+        </a>
+        <a class="btn btn-ghost" href="#" data-todo="github">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12a11.5 11.5 0 0 0 7.9 10.9c.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 1.7 2.7 1.2 3.3.9.1-.7.4-1.2.7-1.5-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.4 4.7 18.4 5 18.4 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A11.5 11.5 0 0 0 23.5 12C23.5 5.7 18.3.5 12 .5z"/></svg>
+          View the code
+        </a>
+      </div>
+    </div>
+
+    <!-- a real result card, echoing the app's own design -->
+    <figure class="hero-card" aria-label="Example result card from the app">
+      <div class="hc-top">
+        <span class="hc-code">CCST9083</span>
+        <span class="pill" style="font-size:.68rem;padding:.22em .55em">Sem 1</span>
+      </div>
+      <div class="hc-title">Earth as Seen by Satellite</div>
+      <div class="hc-quiz">Assessment includes a quiz or test.</div>
+      <div class="hc-row">
+        <div><div class="hc-k">Self-study</div><div class="hc-v">24 h</div></div>
+        <div><div class="hc-k">Total</div><div class="hc-v">138 h</div></div>
+        <div><div class="hc-k">Exam</div><div class="hc-v">no</div></div>
+      </div>
+      <div class="hc-fine">
+        Study load: Lectures 24 h · Tutorials 10 h · Labs 6 h · Seminars 5 h ·
+        Assessment prep 54 h<br>
+        Participation: no · Tutorial: no · Lecture: no · Field trip: none ·
+        Cluster: SCCE
+      </div>
+    </figure>
+  </div>
+</header>
+
+<!-- ================= PROBLEM ================= -->
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">The problem</div>
+      <h2>Choosing a Common Core is a research task nobody has time for.</h2>
+      <p>
+        Every HKU student picks Common Core courses, and the information needed to
+        choose well is spread across 201 separate pages, each with its own tables.
+        Comparing two courses means opening two tabs and reading two assessment
+        breakdowns. The catalogue is honest and complete — it is just not
+        <em>comparable</em>.
+      </p>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <div class="kicker">What students actually ask</div>
+        <h3>Questions the catalogue cannot answer in one step</h3>
+        <ul class="bullets">
+          <li>“Which courses have <b>no exam</b> and no tutorial participation?”</li>
+          <li>“This course says 44 hours of self-study — <b>is that a lot</b>?”</li>
+          <li>“Can I take <b>CCST9016 and CCST9013</b> together?”</li>
+          <li>“Which of these two is <b>less work</b> overall?”</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kicker">Who it is for</div>
+        <h3>Students choosing, not administrators filing</h3>
+        <ul class="bullets">
+          <li><b>HKU undergraduates</b> planning a semester of Common Core courses.</li>
+          <li><b>Exchange and first-year students</b> who do not yet know the CC system.</li>
+          <li><b>Academic advisers</b> answering “what else could I take?” quickly.</li>
+          <li>Anyone who wants the <b>source page</b> behind every claim, not a summary they must trust.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="note">
+      The app is informational only. It does not guarantee a seat, confirm
+      eligibility, or rank courses by ease — and it says so on the page, next to
+      every result.
+    </p>
+  </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Key features</div>
+      <h2>Five tools, one catalogue.</h2>
+      <p>Search, Ask, Browse, Compare and Conflicts — each screenshot below is the
+        real app, running against the real 201-course dataset, nothing mocked up.
+        <span class="zoomhint">Click any screenshot to enlarge it.</span></p>
+    </div>
+
+    <!-- 1 Search -->
+    <div class="feature">
+      <div>
+        <span class="num">1</span>
+        <h3>Search that only answers with keywords</h3>
+        <p>
+          Type a subject, or leave the box empty and use only filters. A course is
+          listed only when your words actually appear on its own page — a match on
+          its area of inquiry or a look-alike neighbour is never dressed up as a
+          keyword match, and if nothing matches, the app says so.
+        </p>
+        <ul>
+          <li>Ten one-click quick starts: no exam (194 courses), no tutorial participation (56), no lecture participation (110), no field trip, online only (11), and four subject chips</li>
+          <li>Filters for area of inquiry (CCST / CCHU / CCGL / CCCH / CCAI), semester, workload, and a sort — relevance or lowest self-study</li>
+          <li>A course code like <code>CCGL9066</code> jumps straight to that course</li>
+          <li>The heading always gives the true total, even when the page is truncated</li>
+          <li>The “why recommended” line is off the cards by design — the evidence still drives Ask mode and the relevance test suite</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/01-search.jpg" alt="The Search tab: ten quick-start buttons, a query box, and a filter panel with checkboxes for exam, quiz, tutorial participation, lecture participation, field trip and online, plus area of inquiry, semester and sort controls.">
+        <figcaption><b>The Search form.</b> Ten quick starts answer the questions students ask most; the filters work with or without a query, so “CCGL without a quiz” needs no typing at all.</figcaption>
+      </figure>
+    </div>
+
+    <!-- 1b Results -->
+    <div class="feature flip">
+      <div>
+        <span class="num cont">2</span>
+        <h3>…and the ranking is the statement</h3>
+        <p>
+          Every hit is admitted on wording a reader can check, so the ranked list
+          can be taken at face value. Each card then gives the figures that matter:
+          self-study hours, total hours, exam status and the full study-load
+          breakdown.
+        </p>
+        <ul>
+          <li><b>Placement outranks occurrence</b> — a word in the title or a learning outcome says the course is about the subject; a passing mention is ranked below, not deleted</li>
+          <li><b>A shared word is not a match</b> — “climate change” is answered by courses containing “climate” (14 of 201), not by ones that merely say “change” (36)</li>
+          <li><b>A question’s wording is not a subject</b> — function words and the filter vocabulary shape the intent and never become retrieval evidence; corpus statistics cannot draw that line</li>
+          <li><b>Boilerplate is not course content</b> — the identical Communication-intensive notice on 39 pages is removed at parse time; site-specific notices are kept</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/02-results.jpg" alt="Search results for climate change: 6 relevant courses found, the first card CCST9083 Earth as Seen by Satellite showing area, semester, self-study and total hours, exam status, a quiz note, the study-load breakdown, participation kinds, thematic clusters, an evidence expander and the source link.">
+        <figcaption><b>Searching “climate change”</b> returns the courses whose own pages use the words — six hits, led by <em>Earth as Seen by Satellite</em> with the study-load breakdown the catalogue buries in a table.</figcaption>
+      </figure>
+    </div>
+
+    <!-- 2 Ask -->
+    <div class="feature flip">
+      <div>
+        <span class="num">3</span>
+        <h3>Ask a question, get a cited answer</h3>
+        <p>
+          A chat grounded in the course pages: answers stream in, cite a course code
+          and a URL, and keep the thread across follow-ups. When the catalogue holds
+          nothing, it says so instead of inventing an answer.
+        </p>
+        <ul>
+          <li>The input bar stays pinned at the bottom, so the next question never needs a scroll down</li>
+          <li>Follow-ups are rewritten into a standalone question, so “which of those has no exam?” still finds the right courses</li>
+          <li>Filters are read from the wording — “no lecture participation”, hyphenated “no-exam”, plural “no exams”, and a semester mention all set the right controls; “both semesters” sets none</li>
+          <li>“Lowest self-study hours?” is answered from the filtered set <em>ordered by that figure</em>, so the first course named is the true minimum</li>
+          <li>Out-of-scope and subjective questions are refused by design; stop mid-answer and the partial reply is kept, marked unfinished</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/06-ask.jpg" alt="The Ask tab: three example-question buttons — no final exam, courses about music, no lecture participation — above the input box pinned at the bottom of the chat.">
+        <figcaption><b>Ask mode</b> needs an API key for the language model (this install has one set); Search, Browse, Compare and Conflicts work fully offline. The three example questions are one click away.</figcaption>
+      </figure>
+    </div>
+
+    <!-- 3 Browse -->
+    <div class="feature">
+      <div>
+        <span class="num">4</span>
+        <h3>Every stored field, one page</h3>
+        <p>
+          Pick a course and read the full record: description, learning outcomes,
+          participation details, the study-load and assessment tables, thematic
+          clusters and the non-permissible combinations — all from one page, with
+          the source link.
+        </p>
+        <ul>
+          <li>Searchable course list by code or title</li>
+          <li>Semester shown in readable form <em>and</em> the page's own wording</li>
+          <li>The source URL and its fetch date travel with every result</li>
+          <li>Teaching-staff contact details are never stored — scrubbed before the data is saved</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/03-browse.jpg" alt="Browse view for CCGL9066 Music and Global Politics: From Beethoven to Beyoncé and Beyond: area of inquiry, semester, participation marks, description and learning outcomes.">
+        <figcaption><b>Browsing CCGL9066</b> — description, learning outcomes and the participation line; the study-load and assessment tables sit right below, without leaving the page.</figcaption>
+      </figure>
+    </div>
+
+    <!-- 4 Compare -->
+    <div class="feature flip">
+      <div>
+        <span class="num">5</span>
+        <h3>Compare, with the differences highlighted</h3>
+        <p>
+          Attributes run down the side and one column per course, so a row shows the
+          difference at a glance. Rows where the courses differ are highlighted and
+          listed underneath.
+        </p>
+        <ul>
+          <li>Choose which attributes matter and hide the rest</li>
+          <li>“Participation marks” is off by default — 145 of 201 courses award one, so it rarely separates anything</li>
+          <li>Every column links back to its official course page, and the source link is a row of the matrix itself</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/04-compare.jpg" alt="Compare matrix for CCAI5001 and CCAI9001: rows for contact hours, self-study, assessment preparation, non-contact hours, total hours and quiz, with the six differing rows highlighted.">
+        <figcaption><b>Two CCAI courses compared.</b> Six rows differ and are highlighted — including 32 h vs 60 h of self-study, which is exactly the comparison the catalogue makes hard.</figcaption>
+      </figure>
+    </div>
+
+    <!-- 5 Conflicts -->
+    <div class="feature">
+      <div>
+        <span class="num">6</span>
+        <h3>Conflicts — before you enrol</h3>
+        <p>
+          Select any set of courses and the app checks every pair for a
+          non-permissible combination. A red warning appears only when the clash is
+          <em>inside your selection</em>.
+        </p>
+        <ul>
+          <li>Checks all pairs at once, not just adjacent ones</li>
+          <li>Declarations pointing outside your selection are listed separately, with the course to add if you want to check the pair</li>
+          <li>Links the official index of every combination</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="img/05-conflicts.jpg" alt="Conflicts tab with CCST9016 and CCST9013 selected, showing a red warning that each lists the other as a non-permissible combination.">
+        <figcaption><b>CCST9016 + CCST9013</b> — caught before enrolment, with the exact wording the catalogue uses.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Scrape once, then answer locally.</h2>
+      <p>
+        A one-off pipeline turns 201 published pages into a structured, embedded
+        catalogue. The app only ever reads that catalogue — so a search costs
+        milliseconds and needs no network.
+      </p>
+    </div>
+
+    <div class="arch">
+      <svg viewBox="0 0 940 330" role="img" aria-label="Architecture: the HKU course pages are fetched and scrubbed of personal data, parsed into structured fields, embedded into 384-dimension vectors and stored in PostgreSQL; the Streamlit app reads the catalogue for search, browse, compare and conflicts, and calls a language model for Ask mode.">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#9aa5b4"/>
+          </marker>
+          <marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#a4001a"/>
+          </marker>
+        </defs>
+
+        <!-- row 1: ingestion -->
+        <text x="0" y="16" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11" font-weight="700" fill="#5d6773" letter-spacing="1.4">BUILD TIME · RUNS ONCE</text>
+
+        <rect x="0" y="30" width="176" height="74" rx="10" fill="#f7f8fa" stroke="#e2e6ec"/>
+        <text x="16" y="54" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#14181f">HKU course pages</text>
+        <text x="16" y="72" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">201 published pages</text>
+        <text x="16" y="88" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">commoncore.hku.hk</text>
+
+        <rect x="216" y="30" width="176" height="74" rx="10" fill="#f7f8fa" stroke="#e2e6ec"/>
+        <text x="232" y="54" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#14181f">Fetch + privacy scrub</text>
+        <text x="232" y="72" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">contact details removed</text>
+        <text x="232" y="88" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">before anything is stored</text>
+
+        <rect x="432" y="30" width="176" height="74" rx="10" fill="#f7f8fa" stroke="#e2e6ec"/>
+        <text x="448" y="54" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#14181f">Parse to fields</text>
+        <text x="448" y="72" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">exam · quiz · hours</text>
+        <text x="448" y="88" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">participation · clauses</text>
+
+        <rect x="648" y="30" width="176" height="74" rx="10" fill="#f7f8fa" stroke="#e2e6ec"/>
+        <text x="664" y="54" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#14181f">Chunk + embed</text>
+        <text x="664" y="72" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">1,385 passages</text>
+        <text x="664" y="88" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">MiniLM · 384 dimensions</text>
+
+        <line x1="176" y1="67" x2="210" y2="67" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="392" y1="67" x2="426" y2="67" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="608" y1="67" x2="642" y2="67" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+
+        <!-- database -->
+        <rect x="216" y="142" width="392" height="72" rx="10" fill="#eef3fa" stroke="#c9d9ef"/>
+        <text x="234" y="168" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#1a4d8f">PostgreSQL + pgvector</text>
+        <text x="234" y="186" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#3d4653">201 courses · 1,385 chunks · 1,385 vectors</text>
+        <text x="234" y="202" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#3d4653">the whole catalogue ships with the repo</text>
+
+        <line x1="736" y1="104" x2="736" y2="178" stroke="#9aa5b4" stroke-width="1.5"/>
+        <line x1="736" y1="178" x2="612" y2="178" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+
+        <!-- row 2: runtime -->
+        <text x="0" y="158" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11" font-weight="700" fill="#5d6773" letter-spacing="1.4">RUN TIME · EVERY</text>
+        <text x="0" y="173" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11" font-weight="700" fill="#5d6773" letter-spacing="1.4">QUESTION</text>
+
+        <rect x="0" y="226" width="176" height="82" rx="10" fill="#fdf2f4" stroke="#f3d3d9"/>
+        <text x="16" y="250" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5" font-weight="650" fill="#a4001a">Streamlit app</text>
+        <text x="16" y="268" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#3d4653">Search · Ask · Browse</text>
+        <text x="16" y="283" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#3d4653">Compare · Conflicts</text>
+        <text x="16" y="298" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">localhost:8501</text>
+
+        <rect x="216" y="236" width="392" height="62" rx="10" fill="#fff" stroke="#e2e6ec"/>
+        <text x="234" y="260" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="650" fill="#14181f">Hybrid retrieval</text>
+        <text x="234" y="278" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">keyword relevance + vector similarity, then a relevance gate</text>
+        <text x="234" y="292" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">filters applied in SQL before ranking</text>
+
+        <rect x="648" y="236" width="176" height="62" rx="10" fill="#f7f8fa" stroke="#e2e6ec" stroke-dasharray="4 3"/>
+        <text x="664" y="260" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="650" fill="#14181f">Language model</text>
+        <text x="664" y="278" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">Ask mode only</text>
+        <text x="664" y="292" font-family="ui-sans-serif,system-ui,sans-serif" font-size="10.5" fill="#5d6773">optional API key</text>
+
+        <line x1="176" y1="267" x2="210" y2="267" stroke="#a4001a" stroke-width="1.6" marker-end="url(#arw2)"/>
+        <line x1="608" y1="267" x2="642" y2="267" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="412" y1="214" x2="412" y2="232" stroke="#9aa5b4" stroke-width="1.5" marker-end="url(#arw)"/>
+      </svg>
+    </div>
+
+    <div class="arch-legend">
+      <div><b>Build time</b>A Python pipeline fetches, scrubs, parses and embeds the catalogue, then exports it to a single SQL file that ships with the repo.</div>
+      <div><b>Run time</b>The app opens the database and answers from it. Search, Browse, Compare and Conflicts never touch the network.</div>
+      <div><b>Optional</b>Only Ask mode calls a hosted model, keeping answers grounded in the passages that were retrieved.</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n">201</div><div class="l">Common Core courses</div></div>
+      <div class="stat"><div class="n">1,385</div><div class="l">text passages indexed</div></div>
+      <div class="stat"><div class="n">11</div><div class="l">fully online courses</div></div>
+      <div class="stat"><div class="n">438</div><div class="l">automated tests</div></div>
+    </div>
+
+    <pre><span class="c"># one command, no scraping, no network, no API key</span>
+docker compose up -d
+<span class="c"># then open  http://localhost:8501  — the catalogue is already inside</span>
+
+<span class="c"># rebuild the catalogue from the live pages (needs network, ~20 min on CPU)</span>
+docker compose --profile pipeline run --rm pipeline \
+    python scripts/run_pipeline.py</pre>
+
+    <p class="note">
+      Reproducibility was a design goal: the committed seed holds 201 courses,
+      1,385 passages and every embedding vector, so a fresh clone is a working app
+      in one command.
+    </p>
+  </div>
+</section>
+
+<!-- ================= LINKS ================= -->
+<section id="links">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">See it yourself</div>
+      <h2>Demo video and source code.</h2>
+      <p>The demo video will be added after upload. The project repository is available to authorized viewers.</p>
+    </div>
+
+    <div class="linkrow">
+      <!-- TODO: replace these two hrefs -->
+      <a class="linkcard" href="#" data-todo="demo-video">
+        <div class="k">Demo video</div>
+        <div class="t">Video coming soon</div>
+        <div class="d">Search, filters, Ask mode and the conflict checker, end to end.</div>
+      </a>
+      <a class="linkcard" href="#" data-todo="github">
+        <div class="k">GitHub repository</div>
+        <div class="t">Read the source →</div>
+        <div class="d">Pipeline, retrieval, Streamlit app and the 438-test suite.</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TEAM ================= -->
+<section id="team">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">The team</div>
+      <h2>Group 48</h2>
+      <p>AILT9019 · The University of Hong Kong.</p>
+    </div>
+
+    <!-- TODO: replace names and roles -->
+    <div class="team">
+      <div class="person">
+        <div class="avatar">M1</div>
+        <div class="nm">Liu Chun Yin</div>
+        <div class="rl">Scraping &amp; parsing</div>
+      </div>
+      <div class="person">
+        <div class="avatar">M2</div>
+        <div class="nm">Qu Yunhao</div>
+        <div class="rl">Retrieval &amp; ranking</div>
+      </div>
+      <div class="person">
+        <div class="avatar">M3</div>
+        <div class="nm">Xu Siyuan</div>
+        <div class="rl">Interface &amp; evaluation</div>
+      </div>
+      <div class="person">
+        <div class="avatar">M4</div>
+        <div class="nm">Wang Siyi</div>
+        <div class="rl">Data &amp; testing</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      Data from <a href="https://commoncore.hku.hk" target="_blank" rel="noopener">commoncore.hku.hk</a>.
+      Informational only — always check the official course page before relying on it.
+    </div>
+    <div>AILT9019 · Group 48</div>
+  </div>
+</footer>
+
+<div class="lb" id="lightbox" role="dialog" aria-label="Enlarged screenshot">
+  <span class="close" aria-hidden="true">×</span>
+  <img alt="">
+</div>
+
+<script>
+  /* ---------- screenshot lightbox ---------- */
+  (function () {
+    const lb = document.getElementById("lightbox");
+    const lbImg = lb.querySelector("img");
+    document.querySelectorAll(".fig img").forEach(function (img) {
+      img.addEventListener("click", function () {
+        lbImg.src = img.src;
+        lbImg.alt = img.alt;
+        lb.classList.add("on");
+      });
+    });
+    function close() { lb.classList.remove("on"); lbImg.removeAttribute("src"); }
+    lb.addEventListener("click", close);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") close();
+    });
+  })();
+</script>
+
+<script>
+  /* Placeholders: link targets marked data-todo are intentionally left as "#".
+     Replace the href values below with your real URLs and the page is done. */
+  const LINKS = {
+    "demo-video": "#",   // TODO: e.g. "https://youtu.be/xxxxxxxx"
+    "github":     "https://github.com/JohnsonLiu2407/AILT9019-Group48-Project"
+  };
+  document.querySelectorAll("[data-todo]").forEach(function (el) {
+    const key = el.getAttribute("data-todo");
+    const url = LINKS[key];
+    if (url && url !== "#") {
+      el.setAttribute("href", url);
+      if (/^https?:/.test(url)) {
+        el.setAttribute("target", "_blank");
+        el.setAttribute("rel", "noopener");
+      }
+    } else {
+      el.addEventListener("click", function (e) {
+        e.preventDefault();
+        el.setAttribute("title", "Placeholder — add this URL before publishing");
+      });
+    }
+  });
+</script>
+</body>
+</html>
